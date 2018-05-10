@@ -5,19 +5,25 @@ GPU run command with Theano backend (with TensorFlow, the GPU is automatically u
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10.py
 """
 from __future__ import print_function
-from keras.datasets import cifar10
+
+import os
+
+import datetime
+import numpy as np
+import tensorflow as tf
+from keras.callbacks import ReduceLROnPlateau, CSVLogger, EarlyStopping
 from keras.datasets import cifar100
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import np_utils
-from keras.callbacks import ReduceLROnPlateau, CSVLogger, EarlyStopping
-import tensorflow as tf
-import numpy as np
-import resnet
 
+import resnet_models.complicated_model.resnet as resnet
+
+# Configure keras to work with GPU
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 session = tf.Session(config=config)
 
+# The model code starts here
 lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), cooldown=0, patience=5, min_lr=0.5e-6)
 early_stopper = EarlyStopping(min_delta=0.001, patience=10)
 csv_logger = CSVLogger('resnet18_cifar10.csv')
@@ -27,6 +33,16 @@ batch_size = 32
 nb_classes = 100
 nb_epoch = 100
 data_augmentation = True
+# save_dir = os.path.join(np.os.getcwd(), 'saved_models')
+# model_name = 'current_model_trained_model.h5'
+
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+now = datetime.datetime.now()
+curr_time = now.strftime("%Y%m%d%H%M")
+model_name = 'keras_cifar10_trained_model_{0}_{1}_{2}.h5'.format(batch_size,nb_epoch,curr_time)
+print("Model name",model_name)
+
+
 
 # input image dimensions
 img_rows, img_cols = 32, 32
@@ -90,6 +106,12 @@ else:
                         epochs=nb_epoch, verbose=1, max_q_size=100,
                         callbacks=[lr_reducer, early_stopper, csv_logger])
 
+
+# Save model
+if not os.path.isdir(save_dir):
+    os.makedirs(save_dir)
+model_path = os.path.join(save_dir, model_name)
+model.save(model_path)
 
 score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test loss:', score[0])
